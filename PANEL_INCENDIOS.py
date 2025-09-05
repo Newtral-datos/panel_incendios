@@ -15,7 +15,6 @@ from googleapiclient.discovery import build
 from pandas.api.types import is_datetime64_any_dtype, is_datetime64tz_dtype
 from datetime import datetime as _dt
 
-# --- lector robusto: usa pyogrio solo si hace falta
 def gpd_read_smart(path, **kwargs):
     try:
         return gpd.read_file(path, **kwargs)
@@ -97,21 +96,15 @@ geodata_copernicus = gpd.read_file(ruta_geodata_copernicus, engine="pyogrio")
 
 # LIMPIEZA DE DATOS COPERNICUS.
 print(f"[{hora()}]Limpiando datos (Copernicus)…")
-    ## Filtrar solo España.
 geodata_copernicus = geodata_copernicus[geodata_copernicus["COUNTRY"] == "ES"]
-
-    ## Formatear fecha y año.
 geodata_copernicus["FECHA_INCENDIO"] = pd.to_datetime(
     geodata_copernicus["FIREDATE"], format="mixed", errors="coerce"
 ).dt.strftime("%d/%m/%Y")
 geodata_copernicus["AÑO"] = geodata_copernicus["FECHA_INCENDIO"].str[-4:]
-
-    ## Hectáreas a números con separador de miles.
 geodata_copernicus["HECTAREAS"] = pd.to_numeric(geodata_copernicus["AREA_HA"], errors="coerce").apply(
     lambda x: f"{x:,.0f}".replace(",", ".") if pd.notnull(x) else pd.NA
 )
 
-    ## Ajustar nombres (Provincia/Municipio).
 def metatesis(texto):
     if isinstance(texto, str) and "," in texto:
         partes = texto.split(", ")
@@ -122,7 +115,6 @@ def metatesis(texto):
 geodata_copernicus["PROVINCE"] = geodata_copernicus["PROVINCE"].apply(metatesis)
 geodata_copernicus["COMMUNE"] = geodata_copernicus["COMMUNE"].apply(metatesis)
 
-# REPROYECTAR Y CENTROIDES.
 print(f"[{hora()}]Reproyectando y calculando centroides (Copernicus)…")
 geodata_copernicus = geodata_copernicus.to_crs(epsg=4326)
 geodata_copernicus["CENTROIDES"] = geodata_copernicus.geometry.centroid
@@ -130,14 +122,12 @@ geodata_copernicus["LATITUD"] = geodata_copernicus["CENTROIDES"].y
 geodata_copernicus["LONGITUD"] = geodata_copernicus["CENTROIDES"].x
 geodata_copernicus["CENTROIDES"] = geodata_copernicus["CENTROIDES"].to_wkt()
 
-    ## Quitar columnas no necesarias.
 cols_drop = [
     "id", "LASTUPDATE", "COUNTRY", "BROADLEA", "CONIFER", "MIXED", "SCLEROPH",
     "TRANSIT", "OTHERNATLC", "AGRIAREAS", "ARTIFSURF", "OTHERLC", "PERCNA2K", "CLASS"
 ]
 geodata_copernicus = geodata_copernicus.drop(columns=[c for c in cols_drop if c in geodata_copernicus.columns])
 
-# EXPORTACIÓN LOCAL COPERNICUS.
 print(f"[{hora()}]Exportando Copernicus…")
 geodata_copernicus.to_file(
     f"{directorio}{ruta_salida}{prefijo_fecha_limpia_copernicus}{fecha_copernicus}.geojson",
@@ -149,12 +139,10 @@ data_copernicus.to_excel(
     index=False
 )
 
-# Resumen por años.
 datos2025 = geodata_copernicus["AÑO"].value_counts()
 datos2025.to_excel(f"{directorio}recuento_años.xlsx", index=True)
 
 # ----- FIRMS
-# FUNCIONES AUXILIARES FIRMS.
 def descargar_zip(url: str, ruta_zip: Path):
     print(f"[{hora()}]Descargando ZIP FIRMS…")
     ruta_zip.parent.mkdir(parents=True, exist_ok=True)
@@ -201,7 +189,6 @@ def normalizar_columnas(gdf: gpd.GeoDataFrame, etiqueta_ventana: str) -> gpd.Geo
     gdf["ventana"] = etiqueta_ventana
     return gdf[["geometry", "LATITUDE", "LONGITUDE", "ACQ_DATE", "ventana"]]
 
-# PROCESO FIRMS.
 print(f"[{hora()}]Iniciando proceso FIRMS…")
 espana = cargar_poligono_local(ruta_poligono_espana, capa=capa_poligono_espana)
 
@@ -211,7 +198,6 @@ try:
     gdf_48h = normalizar_columnas(cargar_filtrar_firms(url_firms_48h, carpeta_descargas, carpeta_extraccion, espana), "ultimos")
     gdf_combinado = pd.concat([gdf_24h, gdf_48h], ignore_index=True).sort_values(by="ventana", ascending=False)
 
-    # Guardar geojson locales.
     gdf_24h.to_file(carpeta_resultado / f"nuevo_{fecha_str}.geojson", driver="GeoJSON", index=False)
     gdf_48h.to_file(carpeta_resultado / f"ultimos_{fecha_str}.geojson", driver="GeoJSON", index=False)
     gdf_combinado.to_file(carpeta_resultado / f"conjunto_{fecha_str}.geojson", driver="GeoJSON", index=False)
@@ -226,7 +212,7 @@ finally:
 
 # CONVERTIR A EXCEL.
 print(f"[{hora()}]Convirtiendo FIRMS a Excel…")
-datos_conjuntos = gpd.read_file(str(carpeta_resultado / f"conjunto_{fecha_str}.geojson")).drop(columns=["geometry"])
+datos_conjuntos = gpd_read_smart(carpeta_resultado / f"conjunto_{fecha_str}.geojson").drop(columns=["geometry"])
 xlsx_conj = carpeta_resultado / f"conjunto_{fecha_str}.xlsx"
 datos_conjuntos.to_excel(xlsx_conj, index=False)
 
@@ -249,7 +235,6 @@ from google_auth_httplib2 import AuthorizedHttp
 from datetime import datetime as _dt
 
 creds = Credentials.from_service_account_file(cred_path, scopes=scope)
-
 _http = httplib2.Http(timeout=500)
 _authed_http = AuthorizedHttp(creds, http=_http)
 service = build("sheets", "v4", http=_authed_http, cache_discovery=False)
@@ -282,7 +267,6 @@ def subir_df_a_sheet(df: pd.DataFrame, rango_inicial: str, pestaña: str, chunk_
     for c in ["LATITUD", "LONGITUD", "LATITUDE", "LONGITUDE"]:
         if c in df.columns:
             df[c] = df[c].astype(str)
-
     for col in df.columns:
         if is_datetime64_any_dtype(df[col]) or is_datetime64tz_dtype(df[col]):
             df[col] = df[col].dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -344,7 +328,7 @@ def subir_df_a_sheet(df: pd.DataFrame, rango_inicial: str, pestaña: str, chunk_
 # Hectáreas quemadas.
 carpeta_datos = "/Users/miguel.ros/Desktop/GITHUB/repositorio_panel_incendios/"
 excel = pd.read_excel(f"{carpeta_datos}datos_limpios/incendios_{fecha_copernicus}.xlsx")
-geodata = gpd.read_file(f"{carpeta_datos}datos_limpios/incendios_{fecha_copernicus}.geojson")
+geodata = gpd_read_smart(f"{carpeta_datos}datos_limpios/incendios_{fecha_copernicus}.geojson")
 
 geodata = geodata[geodata["AÑO"] == "2025"]
 geodata["FIREDATE"] = pd.to_datetime(geodata["FIREDATE"])
@@ -360,7 +344,6 @@ fecha_copernicus = datetime.now(ZoneInfo("Europe/Madrid")).strftime("%d_%m_%Y")
 directorio_copernicus = "/Users/miguel.ros/Desktop/GITHUB/repositorio_panel_incendios/"
 
 df_final = pd.read_excel(f"{directorio_copernicus}/años_miteco/miteco_completo.xlsx")
-
 copernicus = pd.read_excel(f"{directorio_copernicus}datos_limpios/incendios_{fecha_copernicus}.xlsx")
 
 copernicus.drop(columns=[
@@ -386,7 +369,6 @@ datos_peores_incendios["MUNICIPIO"] = datos_peores_incendios["MUNICIPIO"].replac
 datos_peores_incendios["MUNICIPIO"] = datos_peores_incendios["MUNICIPIO"].replace("Otra Provincia", "Ubicación indeterminada")
 
 datos_peores_incendios = pd.DataFrame(datos_peores_incendios)
-
 datos_peores_incendios = datos_peores_incendios.sort_values(
     by="AREA_HA", ascending=False
 ).head(1000)
@@ -410,9 +392,7 @@ datos_observable = {
     "hectareas_2025": [hectareas_quemadas_2025],
     "actualizacion": [fecha_actualizacion]
 }
-
 datos_observable = pd.DataFrame(datos_observable)
-
 for col in ["focos_activos", "incendios_2025", "hectareas_2025"]:
     datos_observable[col] = datos_observable[col].apply(lambda x: f"{int(x):,}".replace(",", "."))
 
