@@ -44,22 +44,15 @@ jobs:
           sudo rm -rf /Users/miguel.ros/GITHUB/repositorio_panel_incendios
           sudo ln -s "${GITHUB_WORKSPACE}" "/Users/miguel.ros/GITHUB/repositorio_panel_incendios"
 
-      - name: Write Google credentials from secret (with correct ownership)
+      - name: Write Google credentials from secret (no sudo)
         shell: bash
         run: |
-          dir="$(dirname "$GOOGLE_CRED_PATH")"
-          sudo mkdir -p "$dir"
-
-          # Escribir el JSON como root (por la ruta bajo /Users/...), luego reasignar propietario al usuario runner
-          sudo bash -lc "cat > '$GOOGLE_CRED_PATH' << 'JSON'
+          mkdir -p "$(dirname "$GOOGLE_CRED_PATH")"
+          cat > "$GOOGLE_CRED_PATH" << 'JSON'
           ${{ secrets.GOOGLE_SHEETS_CREDENTIALS_JSON }}
-          JSON"
-
-          # Asegurar propiedad y permisos para que Python pueda leerlo
-          sudo chown -R "$USER":"$USER" "$dir"
+          JSON
           chmod 600 "$GOOGLE_CRED_PATH"
-
-          echo "Credenciales escritas en $GOOGLE_CRED_PATH con propietario $USER y modo 600."
+          echo "Credenciales escritas en $GOOGLE_CRED_PATH"
           ls -l "$GOOGLE_CRED_PATH"
 
       - name: Run script
