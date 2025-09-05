@@ -15,6 +15,15 @@ from googleapiclient.discovery import build
 from pandas.api.types import is_datetime64_any_dtype, is_datetime64tz_dtype
 from datetime import datetime as _dt
 
+# --- lector robusto: usa pyogrio solo si hace falta
+def gpd_read_smart(path, **kwargs):
+    try:
+        return gpd.read_file(path, **kwargs)
+    except Exception:
+        kwargs2 = dict(kwargs)
+        kwargs2["engine"] = "pyogrio"
+        return gpd.read_file(path, **kwargs2)
+
 # ----- FUNCIONES AUXILIARES
 def hora():
     return datetime.now(ZoneInfo("Europe/Madrid")).strftime("%H:%M:%S")
@@ -147,7 +156,6 @@ datos2025.to_excel(f"{directorio}recuento_años.xlsx", index=True)
 # ----- FIRMS
 # FUNCIONES AUXILIARES FIRMS.
 def descargar_zip(url: str, ruta_zip: Path):
-    ## Descarga un ZIP y lo guarda en disco.
     print(f"[{hora()}]Descargando ZIP FIRMS…")
     ruta_zip.parent.mkdir(parents=True, exist_ok=True)
     r = requests.get(url, headers=cabeceras_http, timeout=60)
@@ -155,7 +163,6 @@ def descargar_zip(url: str, ruta_zip: Path):
     ruta_zip.write_bytes(r.content)
 
 def extraer_zip(ruta_zip: Path, carpeta_destino: Path) -> list[Path]:
-    ## Extrae un ZIP y devuelve lista de archivos.
     print(f"[{hora()}]Extrayendo {ruta_zip} …")
     carpeta_destino.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(ruta_zip, "r") as zf:
@@ -163,33 +170,29 @@ def extraer_zip(ruta_zip: Path, carpeta_destino: Path) -> list[Path]:
         return [carpeta_destino / n for n in zf.namelist()]
 
 def buscar_shp(archivos: list[Path]) -> Path | None:
-    ## Busca archivo .shp en lista.
     for p in archivos:
         if p.suffix.lower() == ".shp":
             return p
     return None
 
 def cargar_poligono_local(ruta: Path, capa: str | None = None) -> gpd.GeoDataFrame:
-    ## Carga polígono de España (geojson).
-    gdf = gpd.read_file(ruta, layer=capa) if capa else gpd.read_file(ruta)
+    gdf = gpd_read_smart(ruta, layer=capa) if capa else gpd_read_smart(ruta)
     if len(gdf) > 1:
         gdf = gdf[["geometry"]].dissolve()
     return gdf.to_crs(epsg=4326) if gdf.crs else gdf.set_crs(epsg=4326)
 
 def cargar_filtrar_firms(url: str, carpeta_descargas: Path,
                          carpeta_extraccion: Path, espana: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    ## Descarga, extrae y filtra datos FIRMS para España.
     nombre_zip = Path(url).name
     ruta_zip = carpeta_descargas / nombre_zip
     descargar_zip(url, ruta_zip)
     archivos = extraer_zip(ruta_zip, carpeta_extraccion / Path(nombre_zip).stem)
     shp = buscar_shp(archivos)
-    gdf = gpd.read_file(shp).to_crs(epsg=4326)
+    gdf = gpd_read_smart(shp).to_crs(epsg=4326)
     gdf_es = gpd.sjoin(gdf, espana, how="inner", predicate=predicado_espacial)
     return gdf_es.drop(columns=["index_right"]) if "index_right" in gdf_es.columns else gdf_es
 
 def normalizar_columnas(gdf: gpd.GeoDataFrame, etiqueta_ventana: str) -> gpd.GeoDataFrame:
-    ## Normaliza columnas principales de FIRMS.
     gdf = gdf.to_crs(epsg=4326)
     cols_lower = {c.lower(): c for c in gdf.columns}
     gdf["LATITUDE"] = gdf[cols_lower["latitude"]] if "latitude" in cols_lower else gdf.geometry.y
@@ -215,7 +218,6 @@ try:
 
     exportado_ok = True
 finally:
-    ## Limpieza de carpetas temporales.
     if exportado_ok:
         if carpeta_descargas.exists():
             shutil.rmtree(carpeta_descargas, ignore_errors=False)
@@ -248,7 +250,6 @@ from datetime import datetime as _dt
 
 creds = Credentials.from_service_account_file(cred_path, scopes=scope)
 
-# Timeout ampliado
 _http = httplib2.Http(timeout=500)
 _authed_http = AuthorizedHttp(creds, http=_http)
 service = build("sheets", "v4", http=_authed_http, cache_discovery=False)
@@ -293,7 +294,6 @@ def subir_df_a_sheet(df: pd.DataFrame, rango_inicial: str, pestaña: str, chunk_
     df = df.applymap(_to_str_safe)
     df = df.where(pd.notnull(df), None)
 
-    # --- Limpiar hoja
     print(f"[{hora()}]Limpiando hoja '{pestaña}' …")
     _exec_with_retries(
         service.spreadsheets().values().clear(
@@ -301,15 +301,12 @@ def subir_df_a_sheet(df: pd.DataFrame, rango_inicial: str, pestaña: str, chunk_
         )
     )
 
-    # --- Preparar valores: cabecera + datos
     header = list(map(str, df.columns.tolist()))
     rows = [[("" if v is None else str(v)) for v in row] for row in df.to_numpy().tolist()]
 
-    # --- Calcular rango inicial
     a1_cell = rango_inicial.replace(f"{pestaña}!", "")
     start_col_letters, start_row = _parse_a1(a1_cell)
 
-    # --- Escribir cabecera
     header_range = f"{pestaña}!{start_col_letters}{start_row}"
     _exec_with_retries(
         service.spreadsheets().values().update(
@@ -320,7 +317,6 @@ def subir_df_a_sheet(df: pd.DataFrame, rango_inicial: str, pestaña: str, chunk_
         )
     )
 
-    # --- Escribir datos en bloques
     if not rows:
         print(f"[{hora()}]No hay filas para subir en '{pestaña}'.")
         return
@@ -383,7 +379,6 @@ copernicus = copernicus.rename(columns={
 copernicus["AREA_HA_TXT"] = copernicus["AREA_HA"].apply(lambda x: f"{x:,.0f}".replace(",", "X").replace(".", ",").replace("X", "."))
 copernicus["FUENTE"] = "Copernicus"
 copernicus = copernicus[copernicus["AÑO"] >= 2017]
-# Unir DFs.
 print("Uniendo y exportando...")
 datos_peores_incendios = pd.concat([df_final, copernicus], ignore_index=True)
 
@@ -397,18 +392,14 @@ datos_peores_incendios = datos_peores_incendios.sort_values(
 ).head(1000)
 
 # ----- DATOS ESTADÍSTICOS.
-# Focos activos.
 activos = pd.read_excel(f"{carpeta_datos}resultado/nuevo_{fecha_copernicus}.xlsx")
 print(f"Hay {len(activos)} focos activos.")
-# Incendios en 2025.
 incendios_2025 = pd.read_excel(f"{carpeta_datos}datos_limpios/incendios_{fecha_copernicus}.xlsx")
 incendios_2025 = incendios_2025[incendios_2025["AÑO"] == 2025]
 print(f"Incendios en 2025: {len(incendios_2025)}")
-# Hectáreas.
 excel = pd.read_excel(f"{carpeta_datos}/hectareas_quemadas_2025.xlsx")
 hectareas_quemadas_2025 = excel["AREA_HA"].sum()
 print(f"Hectáreas quemadas en 2025: {hectareas_quemadas_2025}")
-# Fecha de actualización.
 ahora = datetime.now()
 fecha_actualizacion = ahora.strftime("%d/%m/%Y a las %H:%M")
 print(f"Actualización: {fecha_actualizacion}")
@@ -433,8 +424,3 @@ subir_df_a_sheet(hectareas.copy(), "hectareas!A1", "hectareas")
 subir_df_a_sheet(datos_peores_incendios.copy(), "peores_incendios!A1", "peores_incendios")
 
 print(f"[{hora()}]✅ Todo ha salido a pedir de Milhouse.")
-
-
-
-
-
