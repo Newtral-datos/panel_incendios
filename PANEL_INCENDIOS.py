@@ -39,7 +39,7 @@ os.makedirs(os.path.join(directorio, ruta_salida), exist_ok=True)
 # FIRMS: URLs y rutas.
 url_firms_24h = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/shapes/zips/SUOMI_VIIRS_C2_Europe_24h.zip"
 url_firms_48h = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/shapes/zips/SUOMI_VIIRS_C2_Europe_48h.zip"
-ruta_poligono_espana = Path("/Users/miguel.ros/GITHUB/repositorio_panel_incendios/poligono_españa.geojson")
+ruta_poligono_espana = Path("/Users/miguel.ros/Desktop/GITHUB/repositorio_panel_incendios/poligono_españa.geojson")
 capa_poligono_espana = None
 carpeta_descargas  = Path(directorio) / "descargas"
 carpeta_extraccion = Path(directorio) / "extraccion"
@@ -433,6 +433,7 @@ subir_df_a_sheet(hectareas.copy(), "hectareas!A1", "hectareas")
 subir_df_a_sheet(datos_peores_incendios.copy(), "peores_incendios!A1", "peores_incendios")
 
 print(f"[{hora()}]✅ Todo ha salido a pedir de Milhouse.")
+
 
 
 
