@@ -13,6 +13,8 @@ jobs:
     env:
       TZ: Europe/Madrid
       GEOPANDAS_IO_ENGINE: pyogrio
+      GOOGLE_CRED_PATH: /Users/miguel.ros/Desktop/GITHUB/repositorio_panel_incendios/credenciales_google_sheet.json
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,14 +30,30 @@ jobs:
           pip install -r requirements.txt
           pip install pyogrio==0.9.0
 
-      - name: Create expected absolute path and symlink
+      - name: Create expected absolute paths and symlinks
         run: |
           sudo mkdir -p /Users/miguel.ros/Desktop/GITHUB
-          if [ -e /Users/miguel.ros/Desktop/GITHUB/repositorio_panel_incendios ]; then
-            sudo rm -rf /Users/miguel.ros/Desktop/GITHUB/repositorio_panel_incendios
-          fi
+          sudo rm -rf /Users/miguel.ros/Desktop/GITHUB/repositorio_panel_incendios
           sudo ln -s "${GITHUB_WORKSPACE}" "/Users/miguel.ros/Desktop/GITHUB/repositorio_panel_incendios"
-          ls -la /Users/miguel.ros/Desktop/GITHUB
+
+          sudo mkdir -p /Users/miguel.ros/Desktop
+          sudo rm -rf /Users/miguel.ros/Desktop/PANEL_INCENDIOS
+          sudo ln -s "${GITHUB_WORKSPACE}" "/Users/miguel.ros/Desktop/PANEL_INCENDIOS"
+
+          sudo mkdir -p /Users/miguel.ros/GITHUB
+          sudo rm -rf /Users/miguel.ros/GITHUB/repositorio_panel_incendios
+          sudo ln -s "${GITHUB_WORKSPACE}" "/Users/miguel.ros/GITHUB/repositorio_panel_incendios"
+
+      - name: Write Google credentials from secret
+        shell: bash
+        run: |
+          # crea carpeta y vuelca el JSON del secreto en la ruta absoluta que usa tu script
+          sudo mkdir -p "$(dirname "$GOOGLE_CRED_PATH")"
+          sudo bash -lc "cat > '$GOOGLE_CRED_PATH' << 'JSON'
+          ${{ secrets.GOOGLE_SHEETS_CREDENTIALS_JSON }}
+          JSON"
+          sudo chmod 600 "$GOOGLE_CRED_PATH"
+          test -s "$GOOGLE_CRED_PATH" && echo "Credenciales escritas en $GOOGLE_CRED_PATH"
 
       - name: Run script
         run: |
