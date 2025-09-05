@@ -84,7 +84,7 @@ else:
     print(f"[{hora()}]Aviso: usando {os.path.basename(ruta_geodata_copernicus)}.")
 
 print(f"[{hora()}]Leyendo archivo SHP…")
-geodata_copernicus = gpd.read_file(ruta_geodata_copernicus)
+geodata_copernicus = gpd.read_file(ruta_geodata_copernicus, engine="pyogrio")
 
 # LIMPIEZA DE DATOS COPERNICUS.
 print(f"[{hora()}]Limpiando datos (Copernicus)…")
@@ -433,5 +433,6 @@ subir_df_a_sheet(hectareas.copy(), "hectareas!A1", "hectareas")
 subir_df_a_sheet(datos_peores_incendios.copy(), "peores_incendios!A1", "peores_incendios")
 
 print(f"[{hora()}]✅ Todo ha salido a pedir de Milhouse.")
+
 
 
