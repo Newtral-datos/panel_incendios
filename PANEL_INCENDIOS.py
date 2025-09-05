@@ -39,7 +39,7 @@ os.makedirs(os.path.join(directorio, ruta_salida), exist_ok=True)
 # FIRMS: URLs y rutas.
 url_firms_24h = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/shapes/zips/SUOMI_VIIRS_C2_Europe_24h.zip"
 url_firms_48h = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/shapes/zips/SUOMI_VIIRS_C2_Europe_48h.zip"
-ruta_poligono_espana = Path("/Users/miguel.ros/Desktop/PANEL_INCENDIOS/poligono_españa.geojson")
+ruta_poligono_espana = Path("/Users/miguel.ros/GITHUB/repositorio_panel_incendios/poligono_españa.geojson")
 capa_poligono_espana = None
 carpeta_descargas  = Path(directorio) / "descargas"
 carpeta_extraccion = Path(directorio) / "extraccion"
@@ -346,7 +346,7 @@ def subir_df_a_sheet(df: pd.DataFrame, rango_inicial: str, pestaña: str, chunk_
 
 # ----- GRÁFICOS.
 # Hectáreas quemadas.
-carpeta_datos = "/Users/miguel.ros/Desktop/PANEL_INCENDIOS/"
+carpeta_datos = "/Users/miguel.ros/Desktop/GITHUB/repositorio_panel_incendios/"
 excel = pd.read_excel(f"{carpeta_datos}datos_limpios/incendios_{fecha_copernicus}.xlsx")
 geodata = gpd.read_file(f"{carpeta_datos}datos_limpios/incendios_{fecha_copernicus}.geojson")
 
@@ -361,7 +361,7 @@ hectareas.to_excel(f"{carpeta_datos}/hectareas_quemadas_2025.xlsx")
 
 # Unir Miteco con Copernicus.
 fecha_copernicus = datetime.now(ZoneInfo("Europe/Madrid")).strftime("%d_%m_%Y")
-directorio_copernicus = "/Users/miguel.ros/Desktop/PANEL_INCENDIOS/"
+directorio_copernicus = "/Users/miguel.ros/Desktop/GITHUB/repositorio_panel_incendios/"
 
 df_final = pd.read_excel(f"{directorio_copernicus}/años_miteco/miteco_completo.xlsx")
 
@@ -433,6 +433,7 @@ subir_df_a_sheet(hectareas.copy(), "hectareas!A1", "hectareas")
 subir_df_a_sheet(datos_peores_incendios.copy(), "peores_incendios!A1", "peores_incendios")
 
 print(f"[{hora()}]✅ Todo ha salido a pedir de Milhouse.")
+
 
 
 
