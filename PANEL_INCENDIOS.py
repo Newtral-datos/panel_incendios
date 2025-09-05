@@ -10,7 +10,6 @@ from zoneinfo import ZoneInfo
 import requests
 import pandas as pd
 import geopandas as gpd
-from pandasgui import show
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from pandas.api.types import is_datetime64_any_dtype, is_datetime64tz_dtype
@@ -434,4 +433,5 @@ subir_df_a_sheet(hectareas.copy(), "hectareas!A1", "hectareas")
 subir_df_a_sheet(datos_peores_incendios.copy(), "peores_incendios!A1", "peores_incendios")
 
 print(f"[{hora()}]✅ Todo ha salido a pedir de Milhouse.")
+
 
