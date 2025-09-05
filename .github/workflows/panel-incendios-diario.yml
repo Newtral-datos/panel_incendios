@@ -26,6 +26,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Create expected absolute path and symlink
+        run: |
+          sudo mkdir -p /Users/miguel.ros/Desktop/GITHUB
+          if [ -e /Users/miguel.ros/Desktop/GITHUB/repositorio_panel_incendios ]; then
+            sudo rm -rf /Users/miguel.ros/Desktop/GITHUB/repositorio_panel_incendios
+          fi
+          sudo ln -s "${GITHUB_WORKSPACE}" "/Users/miguel.ros/Desktop/GITHUB/repositorio_panel_incendios"
+          ls -la /Users/miguel.ros/Desktop/GITHUB
+
       - name: Run script
         run: |
           python -V
